@@ -1,718 +1,1805 @@
----
-swagger: "2.0"
+openapi: 3.0.3
 info:
-  description: "This is a sample server Petstore server.  You can find out more about\
-    \ Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).\
-    \  For this sample, you can use the api key `special-key` to test the authorization\
-    \ filters."
-  version: "1.0.5"
-  title: "Swagger Petstore"
-  termsOfService: "http://swagger.io/terms/"
-  contact:
-    email: "apiteam@swagger.io"
-  license:
-    name: "Apache 2.0"
-    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
-host: "petstore.swagger.io"
-basePath: "/v2"
+  version: "1"
+  title: Frankie APIs - OpenAPI 3.0
+  description: |-
+    This is a sample Pet Store Server based on the OpenAPI 3.0 specification.  You can find out more about
+
+
+
 tags:
-- name: "pet"
-  description: "Everything about your Pets"
-  externalDocs:
-    description: "Find out more"
-    url: "http://swagger.io"
-- name: "store"
-  description: "Access to Petstore orders"
-- name: "user"
-  description: "Operations about user"
-  externalDocs:
-    description: "Find out more about our store"
-    url: "http://swagger.io"
-schemes:
-- "https"
-- "http"
+  - name: survey
+    description: Everything about a Survey, including its permissions, and unique urls
+  - name: user
+    description: Operations for user managementand user events
+  - name: url
+    description: Operations for surveys unique urls
+  - name: permission
+    description: Operations for surveys permissions
+  - name: event
+    description: Operations for surveys permissions
+  - name: response
+    description: Operations for surveys responses
 paths:
-  /pet/{petId}/uploadImage:
+  /survey/all:
+    get:
+      tags:
+        - survey
+      summary: Lists all surveys (associated to a given user)
+      description: Returns all surveys that a given user was associted with / assigned to. "super_admin" and any role (with associated surveys) can run this
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SimpleSurvey'          
+  /survey/create:
     post:
       tags:
-      - "pet"
-      summary: "uploads an image"
-      description: ""
-      operationId: "uploadFile"
-      consumes:
-      - "multipart/form-data"
-      produces:
-      - "application/json"
-      parameters:
-      - name: "petId"
-        in: "path"
-        description: "ID of pet to update"
+        - survey
+      summary: Add a new Survey
+      description: |
+        Add a new Survey
+        
+        Also creates
+         - **Tables**: response_{surveyID} and response_events_{surveyID}. 
+         - **File Storage**: {surveyId}/responses, {surveyId}/resources, and {surveyId}/voice_recordings
+         
+        Only roles "super_admin", "survey_admin" can use this endpoint.
+      requestBody:
+        description: baseLanguage and name are mandatory. name should be unique. 
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SurveyInput'
         required: true
-        type: "integer"
-        format: "int64"
-      - name: "additionalMetadata"
-        in: "formData"
-        description: "Additional data to pass to server"
-        required: false
-        type: "string"
-      - name: "file"
-        in: "formData"
-        description: "file to upload"
-        required: false
-        type: "file"
       responses:
-        200:
-          description: "successful operation"
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Survey'          
+        '400':
+          description: Invalid input
+  /survey/{surveyId}:
+    get:
+      tags:
+        - survey
+      summary: Find survey by ID
+      description: Returns a single survey. super_admin and any user who is attached to a given survey can run this endpoint.
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
           schema:
-            $ref: "#/definitions/ApiResponse"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /pet:
-    post:
-      tags:
-      - "pet"
-      summary: "Add a new pet to the store"
-      description: ""
-      operationId: "addPet"
-      consumes:
-      - "application/json"
-      - "application/xml"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "Pet object that needs to be added to the store"
-        required: true
-        schema:
-          $ref: "#/definitions/Pet"
+            type: integer
+            format: int64
       responses:
-        405:
-          description: "Invalid input"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Survey'          
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
     put:
       tags:
-      - "pet"
-      summary: "Update an existing pet"
-      description: ""
-      operationId: "updatePet"
-      consumes:
-      - "application/json"
-      - "application/xml"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "Pet object that needs to be added to the store"
+        - survey
+      summary: Updates a survey
+      description: update all given fields of a survey except the ones that cannot be changed (base language and ID.) Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. surveys with status "closed" cannot be edited.
+      requestBody:
+        description: startDate must be earlier than endDate. Some fields will be ignored like (ID, baseLanguage or status)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Survey'
         required: true
-        schema:
-          $ref: "#/definitions/Pet"
-      responses:
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Pet not found"
-        405:
-          description: "Validation exception"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /pet/findByStatus:
-    get:
-      tags:
-      - "pet"
-      summary: "Finds Pets by status"
-      description: "Multiple status values can be provided with comma separated strings"
-      operationId: "findPetsByStatus"
-      produces:
-      - "application/json"
-      - "application/xml"
       parameters:
-      - name: "status"
-        in: "query"
-        description: "Status values that need to be considered for filter"
-        required: true
-        type: "array"
-        items:
-          type: "string"
-          enum:
-          - "available"
-          - "pending"
-          - "sold"
-          default: "available"
-        collectionFormat: "multi"
-      responses:
-        200:
-          description: "successful operation"
+        - name: surveyId
+          in: path
+          description: ID of Survey that needs to be updated
+          required: true
           schema:
-            type: "array"
-            items:
-              $ref: "#/definitions/Pet"
-        400:
-          description: "Invalid status value"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /pet/findByTags:
-    get:
-      tags:
-      - "pet"
-      summary: "Finds Pets by tags"
-      description: "Multiple tags can be provided with comma separated strings. Use\
-        \ tag1, tag2, tag3 for testing."
-      operationId: "findPetsByTags"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "tags"
-        in: "query"
-        description: "Tags to filter by"
-        required: true
-        type: "array"
-        items:
-          type: "string"
-        collectionFormat: "multi"
+            type: integer
+            format: int64
+            
       responses:
-        200:
-          description: "successful operation"
-          schema:
-            type: "array"
-            items:
-              $ref: "#/definitions/Pet"
-        400:
-          description: "Invalid tag value"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-      deprecated: true
-  /pet/{petId}:
-    get:
-      tags:
-      - "pet"
-      summary: "Find pet by ID"
-      description: "Returns a single pet"
-      operationId: "getPetById"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "petId"
-        in: "path"
-        description: "ID of pet to return"
-        required: true
-        type: "integer"
-        format: "int64"
-      responses:
-        200:
-          description: "successful operation"
-          schema:
-            $ref: "#/definitions/Pet"
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Pet not found"
-      security:
-      - api_key: []
-    post:
-      tags:
-      - "pet"
-      summary: "Updates a pet in the store with form data"
-      description: ""
-      operationId: "updatePetWithForm"
-      consumes:
-      - "application/x-www-form-urlencoded"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "petId"
-        in: "path"
-        description: "ID of pet that needs to be updated"
-        required: true
-        type: "integer"
-        format: "int64"
-      - name: "name"
-        in: "formData"
-        description: "Updated name of the pet"
-        required: false
-        type: "string"
-      - name: "status"
-        in: "formData"
-        description: "Updated status of the pet"
-        required: false
-        type: "string"
-      responses:
-        405:
-          description: "Invalid input"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Survey'     
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
     delete:
       tags:
-      - "pet"
-      summary: "Deletes a pet"
-      description: ""
-      operationId: "deletePet"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - survey
+      summary: Deletes a survey. 
+      description: |
+                  delete a survey. Along with associated Tables and file storage
+                  - **Tables**: response_{surveyID} and response_events_{surveyID}. 
+                  - **File Storage**: {surveyId}/responses, {surveyId}/resources, and {surveyId}/voice_recordings
+                  - **Foreign constraints**: any associated unique urls, or survey permission
+                  
+                  Only surveys with status active cannot be deleted.  
+                  
+                  Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint.
       parameters:
-      - name: "api_key"
-        in: "header"
-        required: false
-        type: "string"
-      - name: "petId"
-        in: "path"
-        description: "Pet id to delete"
-        required: true
-        type: "integer"
-        format: "int64"
+        - name: surveyId
+          in: path
+          description: Survey id to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Pet not found"
-      security:
-      - petstore_auth:
-        - "write:pets"
-        - "read:pets"
-  /store/order:
+        '200':
+          description: Successful Operation
+        '400':
+          description: invalid input, or survey has active status
+        '404':
+          description: survey not found
+
+  /survey/{surveyId}/resource:
     post:
       tags:
-      - "store"
-      summary: "Place an order for a pet"
-      description: ""
-      operationId: "placeOrder"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "order placed for purchasing the pet"
+        - survey
+      summary: uploads a resource to survey resources folder
+      description: This endpoint is used to upload resources like images or videos that will be used in survey. Does not work for a closed survey. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Should not work for a closed survey
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
         required: true
-        schema:
-          $ref: "#/definitions/Order"
-      responses:
-        200:
-          description: "successful operation"
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
           schema:
-            $ref: "#/definitions/Order"
-        400:
-          description: "Invalid Order"
-  /store/order/{orderId}:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/resources:
     get:
       tags:
-      - "store"
-      summary: "Find purchase order by ID"
-      description: "For valid response try integer IDs with value >= 1 and <= 10.\
-        \ Other values will generated exceptions"
-      operationId: "getOrderById"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - survey
+      summary: list resources files for a given survey
+      description: List all files within the resources folder for a given survey. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint.
       parameters:
-      - name: "orderId"
-        in: "path"
-        description: "ID of pet that needs to be fetched"
-        required: true
-        type: "integer"
-        maximum: 10
-        minimum: 1
-        format: "int64"
-      responses:
-        200:
-          description: "successful operation"
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
           schema:
-            $ref: "#/definitions/Order"
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Order not found"
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileInfo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found, file not found
+  /survey/{surveyId}/resource/{fileName}:
+    get:
+      tags:
+        - survey
+      summary: downloads a resource file
+      description: Fetches and provides a file from survey resources foler. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint.
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: fileName
+          in: path
+          description: name of file to be downloaded
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+             application/octet-stream:
+              schema:
+                format: binary
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found, file not found
     delete:
       tags:
-      - "store"
-      summary: "Delete purchase order by ID"
-      description: "For valid response try integer IDs with positive integer value.\
-        \ Negative or non-integer values will generate API errors"
-      operationId: "deleteOrder"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - survey
+      summary: deletes a resource file
+      description: Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Should not work for closed surveys.
       parameters:
-      - name: "orderId"
-        in: "path"
-        description: "ID of the order that needs to be deleted"
-        required: true
-        type: "integer"
-        minimum: 1
-        format: "int64"
-      responses:
-        400:
-          description: "Invalid ID supplied"
-        404:
-          description: "Order not found"
-  /store/inventory:
-    get:
-      tags:
-      - "store"
-      summary: "Returns pet inventories by status"
-      description: "Returns a map of status codes to quantities"
-      operationId: "getInventory"
-      produces:
-      - "application/json"
-      parameters: []
-      responses:
-        200:
-          description: "successful operation"
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
           schema:
-            type: "object"
-            additionalProperties:
-              type: "integer"
-              format: "int32"
-      security:
-      - api_key: []
-  /user/createWithArray:
+            type: integer
+            format: int64
+        - name: fileName
+          in: path
+          description: name of file to be deleted
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found, file not found
+
+  /survey/{surveyId}/clone:
     post:
       tags:
-      - "user"
-      summary: "Creates list of users with given input array"
-      description: ""
-      operationId: "createUsersWithArrayInput"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - survey
+      summary: Clones a survey
+      description: clones a survey into a new one with a draft status. Just like create operation. it will create a complete folder structure for the new survey. {surveyId}/[responses, resources, and voice_recordings] responses, and voice_recordings will be empty. resources will be cloned from source survey resources folder. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint.
       parameters:
-      - in: "body"
-        name: "body"
-        description: "List of user object"
-        required: true
-        schema:
-          type: "array"
-          items:
-            $ref: "#/definitions/User"
+        - name: surveyId
+          in: path
+          description: ID of Survey that needs to be updated
+          required: true
+          schema:
+            type: integer
+            format: int64
+            
       responses:
-        default:
-          description: "successful operation"
-  /user/createWithList:
+        '200':
+          description: Successful operation, returns new survey
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Survey'     
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/url/create:
     post:
       tags:
-      - "user"
-      summary: "Creates list of users with given input array"
-      description: ""
-      operationId: "createUsersWithListInput"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "List of user object"
+        - url
+      summary: Add a new Unique Url
+      description: creates a new unique url. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Cannot be added to a closed survey
+      requestBody:
+        description: only name is mandatory... otherwise quota can be considered. id and isActive will be ignored if supplies. id is generated by the DB.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UniqueUrlInput'
         required: true
-        schema:
-          type: "array"
-          items:
-            $ref: "#/definitions/User"
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
-        default:
-          description: "successful operation"
-  /user/{username}:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UniqueUrl'          
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/url/{urlId}:
     get:
       tags:
-      - "user"
-      summary: "Get user by user name"
-      description: ""
-      operationId: "getUserByName"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - url
+      summary: Fetches a Unique Url by ID
+      description: Fetches a Unique Url by ID. any role can access this endpoint.
       parameters:
-      - name: "username"
-        in: "path"
-        description: "The name that needs to be fetched. Use user1 for testing. "
-        required: true
-        type: "string"
-      responses:
-        200:
-          description: "successful operation"
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
           schema:
-            $ref: "#/definitions/User"
-        400:
-          description: "Invalid username supplied"
-        404:
-          description: "User not found"
+            type: integer
+            format: int64
+        - name: urlId
+          in: path
+          description: ID of unique url
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UniqueUrl'          
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found, Unique url is not found
     put:
       tags:
-      - "user"
-      summary: "Updated user"
-      description: "This can only be done by the logged in user."
-      operationId: "updateUser"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - url
+      summary: Edits a Unique Url
+      description: edits a unique url. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Cannot be edited for a closed survey
+      requestBody:
+        description: Everything is editable (except ID).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UniqueUrlInput'
+        required: true
       parameters:
-      - name: "username"
-        in: "path"
-        description: "name that need to be updated"
-        required: true
-        type: "string"
-      - in: "body"
-        name: "body"
-        description: "Updated user object"
-        required: true
-        schema:
-          $ref: "#/definitions/User"
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: urlId
+          in: path
+          description: ID of unique url
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
-        400:
-          description: "Invalid user supplied"
-        404:
-          description: "User not found"
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UniqueUrl'          
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, Unique url is not found
+  /survey/{surveyId}/url/all:
+    get:
+      tags:
+        - url
+      summary: Lists all unique urls for a given surveyD (active and inactive)
+      description: Lists all unique urls for a given surveyD (active and inactive). Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items: 
+                    $ref: '#/components/schemas/UniqueUrl'          
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/permission:
+    post:
+      tags:
+        - permission
+      summary: Add a survey permission
+      description: grants a given user a permission to access a survey. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. A closed suvery cannot have new permissions added.
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: query
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'          
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/permission/{userId}:
+    get:
+      tags:
+        - permission
+      summary: get a certain permission for a certain user
+      description: grants a given user (whose id is supplied by payload) a permission to access a survey. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Also the user (if userId == user's id)
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'          
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, , permission for this user is not found
+    put:
+      tags:
+        - permission
+      summary: edits a survey permission
+      description: Edits a given user's permission to access a survey. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: quota
+          in: query
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'          
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, permission for this user is not found
     delete:
       tags:
-      - "user"
-      summary: "Delete user"
-      description: "This can only be done by the logged in user."
-      operationId: "deleteUser"
-      produces:
-      - "application/json"
-      - "application/xml"
+        - permission
+      summary: deletes a survey permission
+      description: Deletes a given user's permission to access a survey. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. This operation is blocked for closed surveys.
       parameters:
-      - name: "username"
-        in: "path"
-        description: "The name that needs to be deleted"
-        required: true
-        type: "string"
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
-        400:
-          description: "Invalid username supplied"
-        404:
-          description: "User not found"
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, permission for this user is not found
+  /survey/{surveyId}/permission/all:
+    get:
+      tags:
+        - permission
+      summary: Get all survey permissions
+      description: Gets all survey permissions. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'          
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/response/stats:
+    get:
+      tags:
+        - response
+      summary: Gets total responses count
+      description: Gets responses counts broken down by complete/incomplete.. by user and by unique url. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. 
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation. only user name and use id is included. only unique url name and id are included.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  complete:
+                    type: integer
+                    example: 100
+                  incomplete:
+                    type: integer
+                    example: 22
+                  by_url:
+                    type: array
+                    items: 
+                      type: object
+                      properties:
+                        url:
+                          $ref: '#/components/schemas/UniqueUrl'
+                        count:
+                          type: integer
+                          example: 33
+                  by_user:
+                    type: array
+                    items: 
+                      type: object
+                      properties:
+                        url:
+                          $ref: '#/components/schemas/User'
+                        count:
+                          type: integer
+                          example: 33
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/response/all:
+    get:
+      tags:
+        - response
+      summary: Get/Filter All responses count
+      description: |
+                  Get all responses... 
+                  
+                  This is a paginated request. with page number and items per page are sent as variables. 
+                  
+                  Results can be filetered by surveyorId, url
+                  
+                   Only roles "super_admin", "survey_admin", "surveyor_auditor" and "analyst" (who is associated to this survey) can use this endpoint. 
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          description: page number (default 1 if not present)
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: perPage
+          in: query
+          description: number of items per page (default 20 if not present)
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: userId
+          in: query
+          description: ID of user to filter by
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: urlId
+          in: query
+          description: ID of url to filter by
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    example: 2
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found
+  /survey/{surveyId}/response/start:
+    post:
+      tags:
+        - response
+      summary: creates a new response entry
+      description: Creates a new row in Responses DB (as long as survey is not closed.) This is an internal operation. for now it will be open to all roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartResponseInput'
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, Response not found
+  /survey/{surveyId}/response/{responseId}:
+    get:
+      tags:
+        - response
+      summary: Get a given response by id
+      description: Gets a given response. Only roles "super_admin", "survey_admin", "surveyor_auditor" and "analyst" (who is associated to this survey) can use this endpoint. Along with response all response events are also attached, also the relevant info about surveyor, unique url response events are added if exists. 
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation. Only surveyor name and IDs are injected... only url id and name are injected.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    $ref: '#/components/schemas/Response'
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid input
+        '404':
+          description: Survey not found, Response not found
+    put:
+      tags:
+        - response
+      summary: Edits a given response by id
+      description: Edit a given response. This is an internal operation. for now it will be open to all roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditResponseInput'
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, Response not found
+  /survey/{surveyId}/response/{responseId}/question/{questionId}/attach:
+    post:
+      tags:
+        - response
+      summary: uploads a response file
+      description: |
+        Uploads a File related to a given response. This could be a signature, or an image...etc. This will 
+         - upload the file to {surveyId}/responses directory with a random uuid filename.. 
+         - generates a  FileUploadResponse object as successful result
+         - then will edit the response db row to include this FileUploadResponse
+
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: questionId
+          in: path
+          description: ID of question which response is the file
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+             application/json:
+                schema:
+                  $ref: '#/components/schemas/FileUploadResponse'
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, Response not found, question does not exist
+    get:
+      tags:
+        - response
+      summary: Previews / Downloads a response file
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: questionId
+          in: path
+          description: ID of question which response is the file
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+             application/octet-stream:
+              schema:
+                format: binary
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, Response not found, question does not exist
+  /survey/{surveyId}/response/{responseId}/events:
+    post:
+      tags:
+        - response
+      summary: Posts events related to a given response
+      description: sends events (in a batch)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Event'
+                  
+        required: true
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of Survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input
+        '404':
+          description: survey not found, response not found
+  /survey/{surveyId}/response/{responseId}/recording:
+    post:
+      tags:
+        - response
+      summary: uploads voice recording that was taken during response
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of Survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid input
+        '404':
+          description: survey not found, response not found
+    get:
+      tags:
+        - response
+      summary: Downloads voice recording that was taken during response
+      parameters:
+        - name: surveyId
+          in: path
+          description: ID of survey
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: responseId
+          in: path
+          description: ID of response to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+             application/octet-stream:
+              schema:
+                format: binary
+        '400':
+          description: Invalid input, survey is closed
+        '404':
+          description: Survey not found, Response not found, recording not found
   /user/login:
-    get:
-      tags:
-      - "user"
-      summary: "Logs user into the system"
-      description: ""
-      operationId: "loginUser"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - name: "username"
-        in: "query"
-        description: "The user name for login"
-        required: true
-        type: "string"
-      - name: "password"
-        in: "query"
-        description: "The password for login in clear text"
-        required: true
-        type: "string"
-      responses:
-        200:
-          description: "successful operation"
-          headers:
-            X-Expires-After:
-              type: "string"
-              format: "date-time"
-              description: "date in UTC when token expires"
-            X-Rate-Limit:
-              type: "integer"
-              format: "int32"
-              description: "calls per hour allowed by the user"
-          schema:
-            type: "string"
-        400:
-          description: "Invalid username/password supplied"
-  /user/logout:
-    get:
-      tags:
-      - "user"
-      summary: "Logs out current logged in user session"
-      description: ""
-      operationId: "logoutUser"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters: []
-      responses:
-        default:
-          description: "successful operation"
-  /user:
     post:
       tags:
-      - "user"
-      summary: "Create user"
-      description: "This can only be done by the logged in user."
-      operationId: "createUser"
-      consumes:
-      - "application/json"
-      produces:
-      - "application/json"
-      - "application/xml"
-      parameters:
-      - in: "body"
-        name: "body"
-        description: "Created user object"
+        - user
+      summary: User login
+      description: logs user in against email and password, when successful, a JWT is part of the returned object that can be used for further API calls
+      requestBody:
+        description: both email and password are required.
+        content:
+          application/json:
+            schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                  password:
+                    type: string
+                  
         required: true
-        schema:
-          $ref: "#/definitions/User"
       responses:
-        default:
-          description: "successful operation"
-securityDefinitions:
-  api_key:
-    type: "apiKey"
-    name: "api_key"
-    in: "header"
-  petstore_auth:
-    type: "oauth2"
-    authorizationUrl: "https://petstore.swagger.io/oauth/authorize"
-    flow: "implicit"
-    scopes:
-      read:pets: "read your pets"
-      write:pets: "modify pets in your account"
-definitions:
-  ApiResponse:
-    type: "object"
-    properties:
-      code:
-        type: "integer"
-        format: "int32"
-      type:
-        type: "string"
-      message:
-        type: "string"
-  Category:
-    type: "object"
-    properties:
-      id:
-        type: "integer"
-        format: "int64"
-      name:
-        type: "string"
-    xml:
-      name: "Category"
-  Pet:
-    type: "object"
-    required:
-    - "name"
-    - "photoUrls"
-    properties:
-      id:
-        type: "integer"
-        format: "int64"
-      category:
-        $ref: "#/definitions/Category"
-      name:
-        type: "string"
-        example: "doggie"
-      photoUrls:
-        type: "array"
-        xml:
-          wrapped: true
-        items:
-          type: "string"
-          xml:
-            name: "photoUrl"
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginOutput'     
+        '400':
+          description: Invalid input
+        '401':
+          description: Wrong email or password
+  /user/singup:
+    post:
       tags:
-        type: "array"
-        xml:
-          wrapped: true
-        items:
-          xml:
-            name: "tag"
-          $ref: "#/definitions/Tag"
-      status:
-        type: "string"
-        description: "pet status in the store"
-        enum:
-        - "available"
-        - "pending"
-        - "sold"
-    xml:
-      name: "Pet"
-  Tag:
-    type: "object"
-    properties:
-      id:
-        type: "integer"
-        format: "int64"
-      name:
-        type: "string"
-    xml:
-      name: "Tag"
-  Order:
-    type: "object"
-    properties:
-      id:
-        type: "integer"
-        format: "int64"
-      petId:
-        type: "integer"
-        format: "int64"
-      quantity:
-        type: "integer"
-        format: "int32"
-      shipDate:
-        type: "string"
-        format: "date-time"
-      status:
-        type: "string"
-        description: "Order Status"
-        enum:
-        - "placed"
-        - "approved"
-        - "delivered"
-      complete:
-        type: "boolean"
-    xml:
-      name: "Order"
-  User:
-    type: "object"
-    properties:
-      id:
-        type: "integer"
-        format: "int64"
-      username:
-        type: "string"
-      firstName:
-        type: "string"
-      lastName:
-        type: "string"
-      email:
-        type: "string"
-      password:
-        type: "string"
-      phone:
-        type: "string"
-      userStatus:
-        type: "integer"
-        format: "int32"
-        description: "User Status"
-    xml:
-      name: "User"
-externalDocs:
-  description: "Find out more about Swagger"
-  url: "http://swagger.io"
+        - user
+      summary: User Signin
+      description: Creates a new user with a new tenant. user is automatically assigned super_admin role
+      requestBody:
+        description: email must be unique across all tenants. All fields are required (except token of course)
+        content:
+          application/json:
+            schema:
+                $ref: '#/components/schemas/UserSingupInput'
+                  
+        required: true
+      responses:
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'     
+        '400':
+          description: Invalid input, duplicate email
+  /user/forgot_password:
+    post:
+      tags:
+        - user
+      summary: Request a link to reset password
+      description: triggers an email with reset token for users when they forget password. 
+      requestBody:
+        description: email must be unique across all tenants. All fields are required (except token of course)
+        content:
+          application/json:
+            schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+        required: true
+      responses:
+        '200':
+          description: Successful operation. Any operation with a meaningful email is succesful (we don't want this endpoint to leak our users emails)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'     
+        '400':
+          description: Invalid input
+  /user/reset_password:
+    post:
+      tags:
+        - user
+      summary: resets user password
+      description: Resets a user password... replacing the old one. 
+      requestBody:
+        description: refresh_token (that was send by email) + new password
+        content:
+          application/json:
+            schema:
+                type: object
+                properties:
+                  refresh_token:
+                    type: string
+                  new_password:
+                    type: string
+        required: true
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginOutput'     
+        '400':
+          description: Invalid input
+        '401':
+          description: Expired or wrong refresh token
+  /user/create:
+    post:
+      tags:
+        - user
+      summary: Adds a new user
+      description: Adds a new user (to an already existing tenant.) This operation can only be done by a super_admin. This will trigger forgot_password operation for the user. (so the user can set their password)
+      requestBody:
+        description: email must be unique across all tenants. All fields are required (except token of course)
+        content:
+          application/json:
+            schema:
+                $ref: '#/components/schemas/User'
+                  
+        required: true
+      responses:
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'     
+        '400':
+          description: Invalid input, duplicate email
+        '401':
+          description: Wrong username or password
+  /user/{userId}:
+    get:
+      tags:
+        - user
+      summary: gets user by ID
+      description: Returns a single user. available to all roles.
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'          
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+    put:
+      tags:
+        - user
+      summary: Edits a user
+      description: Edits user details. This operation can only be done by a super_admin, or for the user to edit their own profile (they cannot edit the roles field) If the user changes their email forgot_password will be triggered for their email (and they will be logged out)
+      requestBody:
+        description: email must be unique across all tenants. 
+        content:
+          application/json:
+            schema:
+                $ref: '#/components/schemas/User'
+                  
+        required: true
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'     
+        '400':
+          description: Invalid input, duplicate email
+        '404':
+          description: User not found
+    delete:
+      tags:
+        - user
+      summary: Deletes a user. 
+      description: delete a user. Only roles "super_admin" and own user can use this endpoint. user DB record is not removed, but name email and username are masked / freed by replacing username, and email with deleted_{random_unique_value}. User is automatically logged out
+      parameters:
+        - name: userId
+          in: path
+          description: user id to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful Operation
+        '400':
+          description: invalid input
+        '404':
+          description: user not found
+  /user/all:
+    get:
+      tags:
+        - user
+      summary: list/search/filter all active users
+      description: Lists all active users. There are optional params to filter users by a given role. or search for a user(s) by email, firstname or lastname. Available to all roles
+      parameters:
+        - name: filter
+          in: query
+          description: filter users (whose email, firstName or lastName like input)
+          required: false
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: filter users by a given role
+          required: false
+          schema:
+            $ref: '#/components/schemas/Role'
+            
+      responses:
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'     
+        '400':
+          description: Invalid input
+  /user/count_by_role:
+    get:
+      tags:
+        - user
+      summary: get user count by role. 
+      description: lists all 5 roles and user count for each role... Takes into consideration only active users. Users can be counted twice if they have more than one role. . Available to all roles
+      responses:
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+          content:
+            application/json:
+              schema:
+                type: object
+                example: {
+                  super_admin : 4,
+                  survey_admin: 5,
+                  analyst: 0,
+                  surveyor: 20,
+                  surveyor_auditor: 3
+                }
+  /user/{userId}/event:
+    get:
+      tags:
+        - event
+      summary: gets all events for user
+      description: Gets all events for user (or a subset filtered by from/to dates). This operation can be done by any role
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: from
+          in: query
+          description: from date (filter by events later than this)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2017-07-21T17:32:28Z"
+        - name: to
+          in: query
+          description: to date (filter by events earlier than this)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2017-07-21T17:32:28Z"
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'          
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+    post:
+      tags:
+        - event
+      summary: Posts a new user event
+      description: Creates a new user event. This operation can be done only by each user for him/herself/
+      requestBody:
+        content:
+          application/json:
+            schema:
+                $ref: '#/components/schemas/Event'
+                  
+        required: true
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation, returns new user (with JWT token)
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+
+
+components:
+  schemas:
+        
+    Survey:
+      type: object
+      required: 
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        creationDate:
+          type: string
+          format: date-time
+          example: "2017-07-21T17:32:28Z"
+        lastModified:
+          type: string
+          format: date-time
+          example: "2017-07-21T17:32:28Z"
+        name:
+          type: string
+          example: "Customer Satisfaction Survey"
+        baseLang:
+          $ref: '#/components/schemas/Lang'
+        additionalLnaguages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lang'
+        status:
+          type: string
+          example: draft
+          enum:
+            - draft
+            - active
+            - closed
+        usage:
+          type: string
+          example: mixed
+          enum:
+            - web
+            - offline
+            - mixed
+        quota:
+          type: integer
+          format: int32
+          example: 1000
+        navigationMode:
+          type: string
+          example: page_by_page
+          enum:
+            - all_in_one
+            - page_by_page
+            - question_by_question
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResponseField'
+        allowPrevious:
+          type: boolean
+        skipInvalid:
+          type: boolean
+        allowSave:
+          type: boolean
+        allowJump:
+          type: boolean
+        progressBar:
+          type: boolean
+        saveIp:
+          type: boolean
+        saveTimings:
+          type: boolean
+        saveReferrer:
+          type: boolean
+        recordTimings:
+          type: boolean
+        voiceRecording:
+          type: boolean
+        recordGps:
+          type: boolean
+        canLockSurvey:
+          type: boolean
+    SimpleSurvey:
+      type: object
+      required: 
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        creationDate:
+          type: string
+          format: date-time
+          example: "2017-07-21T17:32:28Z"
+        lastModified:
+          type: string
+          format: date-time
+          example: "2017-07-21T17:32:28Z"
+        name:
+          type: string
+          example: "Customer Satisfaction Survey"
+        baseLang:
+          $ref: '#/components/schemas/Lang'
+        additionalLnaguages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lang'
+        status:
+          type: string
+          example: draft
+          enum:
+            - draft
+            - active
+            - closed
+        usage:
+          type: string
+          example: mixed
+          enum:
+            - web
+            - offline
+            - mixed
+        quota:
+          type: integer
+          format: int32
+          example: 1000
+        navigationMode:
+          type: string
+          example: page_by_page
+          enum:
+            - all_in_one
+            - page_by_page
+            - question_by_question
+    SurveyInput:
+      type: object
+      required: 
+        - name
+        - baseLang
+      properties:
+        name:
+          type: string
+          example: "Customer Satisfaction Survey"
+        baseLang:
+          $ref: '#/components/schemas/Lang'
+        usage:
+          type: string
+          example: mixed
+          enum:
+            - web
+            - offline
+            - mixed
+        additionalLnaguages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lang'
+        quota:
+          type: integer
+          format: int32
+          example: 1000
+        navigationMode:
+          type: string
+          example: page_by_page
+          enum:
+            - all_in_one
+            - page_by_page
+            - question_by_question
+    Lang:
+      required: 
+        - code
+        - langName
+      type: object
+      properties:
+        code:
+          type: string
+          example: "en"
+        langName:
+          type: string
+          example: "English"
+    LoginOutput:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: James
+        auth-token:
+          type: string
+          example: "xxxxx.yyyyy.zzzzz"
+        email:
+          type: string
+          example: john@email.com
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    User:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: James
+        email:
+          type: string
+          example: john@email.com
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    UserSingupInput:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: James
+        email:
+          type: string
+          example: john@email.com
+        password:
+          type: string
+          format: password
+          example: john@email.com
+    Role:
+      type: string
+      example: "super_admin"
+      enum:
+        - "super_admin"
+        - "survey_admin"
+        - "analyst"
+        - "surveyor"
+        - "surveyor_auditor"
+    UniqueUrlInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Kabaka University"
+        quota:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+    UniqueUrl:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "e58ed763-928c-4155-bee9-fdbaaadc15f3"
+        name:
+          type: string
+          example: "Kabaka University"
+        quota:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+    Permission:
+      type: object
+      required:
+        - user
+        - isActive
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        quota:
+          type: integer
+          format: int32
+        isActive:
+          type: boolean
+    Event:
+      type: object
+      required:
+        - time
+        - name
+      properties:
+        time:
+          type: string
+          format: date-time
+        name:
+          type: string
+        details:
+          type: string
+    ResponseField:
+      type: object
+      required:
+        - componentCode
+        - columnName
+        - dataType
+      properties:
+        componentCode:
+          type: string
+          example: "Q1A2"
+        columnName:
+          type: string
+          example: "value"
+          enum:
+            - value
+            - order
+            - priority
+        dataType:
+          type: string
+          example: "boolean"
+          enum:
+             - boolean
+              - string
+              - int
+              - double
+              - list
+              - map
+              - date
+              - file
+    Response:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        incompleteResponseToken:
+          type: string
+          format: uuid
+        uniqueUrl:
+          type: string
+          format: uuid
+        uniqueUrlName:
+          type: string
+          format: "Stanford university"
+        surveyor:
+          type: integer
+          format: int64
+        surveyorName:
+          type: string
+          format: "Max Mustermann"
+        ipAddress:
+          type: string
+        referrerUrl:
+          type: string
+        lang:
+          $ref: '#/components/schemas/Lang'
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        navigationIndex:
+          $ref: '#/components/schemas/NavigationIndex'
+        values:
+          type: object
+          example: {
+        "Q5.value": "A1",
+        "Q6A2.value": true,
+        "Q7A1.value": 4,
+        "Q7A2.value": 5.009
+    }
+    EditResponseInput:
+      type: object
+      required:
+        - values
+      properties:
+        incompleteResponseToken:
+          type: string
+          format: uuid
+        lang:
+          type: string
+          example: "en"
+        endDate:
+          type: string
+          format: date-time
+        navigationIndex:
+          $ref: '#/components/schemas/NavigationIndex'
+        values:
+          type: object
+          example: {
+        "Q5.value": "A1",
+        "Q6A2.value": true,
+        "Q7A1.value": 4,
+        "Q7A2.value": 5.009
+    }
+    StartResponseInput:
+      type: object
+      properties:
+        lang:
+          type: string
+          example: "en"
+        values:
+          type: object
+          example: {
+        "Q5.value": "A1",
+        "Q6A2.value": true,
+        "Q7A1.value": 4,
+        "Q7A2.value": 5.009
+    }
+    FileInfo:
+      type: object
+      required:
+        - name
+        - size
+      properties:
+        name:
+          type: string
+          example: "header-image.jpg"
+        size:
+          type: integer
+          format: int32
+          example: 10344
+    NavigationIndex:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "end"
+          enum:
+            - end
+            - groups
+            - question
+            - group
+        groupId:
+          type: string
+          example: "G1"
+        questionId:
+          type: string
+          example: "Q1"
+        groupIds:
+          type: array
+          items:
+            type : string
+    FileUploadResponse:
+      type: object
+      required:
+        - filename
+        - stored_filename
+        - size
+      properties:
+        filename:
+          type: string
+          example: "customer_sign.jpg"
+        stored_filename:
+          type: string
+          format: uuid
+        size:
+          type: integer
+          example: int64
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        type:
+          type: string
+        message:
+          type: string
+      xml:
+        name: '##default'
