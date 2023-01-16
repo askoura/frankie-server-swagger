@@ -16,7 +16,7 @@ tags:
     description: Survey operations and statistics
   - name: response
     description: Operations for surveys responses and events
-  - name: invititation
+  - name: invitation
     description: Operations for surveys invitations
   - name: permission
     description: Operations for surveys permissions
@@ -295,10 +295,10 @@ paths:
           description: Invalid input
         '404':
           description: Survey not found
-  /survey/{surveyId}/invititation/create:
+  /survey/{surveyId}/invitation/create:
     post:
       tags:
-        - invititation
+        - invitation
       summary: Add a new invitation
       description: creates a new invitation. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Cannot be added to a closed survey
       requestBody:
@@ -327,10 +327,10 @@ paths:
           description: Invalid input, survey is closed
         '404':
           description: Survey not found
-  /survey/{surveyId}/invititation/{invititationId}:
+  /survey/{surveyId}/invitation/{invitationId}:
     get:
       tags:
-        - invititation
+        - invitation
       summary: Fetches an invitation by ID
       description: Fetches an invitation by ID. any role can access this endpoint.
       parameters:
@@ -341,7 +341,7 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: invititationId
+        - name: invitationId
           in: path
           description: ID of invitation
           required: true
@@ -361,7 +361,7 @@ paths:
           description: Survey not found, invitation is not found
     put:
       tags:
-        - invititation
+        - invitation
       summary: Edits an invitation
       description: edits an invitation. Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint. Cannot be edited for a closed survey
       requestBody:
@@ -379,7 +379,7 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: invititationId
+        - name: invitationId
           in: path
           description: ID of invitation
           required: true
@@ -397,10 +397,10 @@ paths:
           description: Invalid input, survey is closed
         '404':
           description: Survey not found, invitation is not found
-  /survey/{surveyId}/invititation/all:
+  /survey/{surveyId}/invitation/all:
     get:
       tags:
-        - invititation
+        - invitation
       summary: Lists all invitation for a given surveyD (active and inactive)
       description: Lists all invitation for a given surveyD (active and inactive). Only roles "super_admin", "survey_admin" (who is associated to this survey) can use this endpoint
       parameters:
